@@ -20,6 +20,7 @@ class ChallengeDataset(Dataset):
             [tv.transforms.ToPILImage(),  # Use only if the input image is not a PIL image
              tv.transforms.ToTensor(),
              tv.transforms.Normalize(mean=[train_mean], std=[train_std])])
+
     def __len__(self):
         return len(self.data)
 
