@@ -19,14 +19,14 @@ class ChallengeDataset(Dataset):
         self._transform = tv.transforms.Compose(
             [tv.transforms.ToPILImage(),  # Use only if the input image is not a PIL image
              tv.transforms.ToTensor(),
-             tv.transforms.Normalize(mean=[train_mean], std=[train_std])])
+             tv.transforms.Normalize(mean=train_mean, std=train_std)])
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
-        if torch.is_tensor(index):
-            index = index.to_list()
+        # if torch.is_tensor(index):
+        #     index = index.to_list()
 
         sample = self.data.iloc[index]
         relative_image_path = sample["filename"]
@@ -43,6 +43,7 @@ class ChallengeDataset(Dataset):
 
         # Perform transformations on the image.
         image = self.transform(image)
+        image = image.unsqueeze(0)                  # add the batch size
 
         # Stack labels into torch.tensor.
         labels = torch.tensor([crack_label, inactive_label])
