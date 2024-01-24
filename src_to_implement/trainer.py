@@ -57,16 +57,27 @@ class Trainer:
         # -compute gradient by backward propagation
         # -update weights
         # -return the loss
-        #TODO
-        
-        
+
+        self._optim.zero_grad()
+
+        y_pred = self._model(x)
+        loss = self._crit(y_pred, y)
+
+        loss.backward()
+        self._optim.step()
+
+        return loss.item()
     
     def val_test_step(self, x, y):
         
         # predict
         # propagate through the network and calculate the loss and predictions
         # return the loss and the predictions
-        #TODO
+
+        y_pred = self._model(x)
+        loss = self._crit(y_pred, y)
+
+        return loss.item(), y_pred
         
     def train_epoch(self):
         # set training mode
@@ -74,7 +85,18 @@ class Trainer:
         # transfer the batch to "cuda()" -> the gpu if a gpu is given
         # perform a training step
         # calculate the average loss for the epoch and return it
-        #TODO
+
+        self._model.train()
+        total_loss = 0
+        for x, y in self._train_dl:
+            if self._cuda:
+                x = x.cuda()
+                y = y.cuda()
+            loss = self.train_step(x, y)
+            total_loss += loss
+        avg_loss = total_loss / len(self._train_dl)
+
+        return avg_loss
     
     def val_test(self):
         # set eval mode. Some layers have different behaviors during training and testing (for example: Dropout, BatchNorm, etc.). To handle those properly, you'd want to call model.eval()
@@ -85,24 +107,59 @@ class Trainer:
         # save the predictions and the labels for each batch
         # calculate the average loss and average metrics of your choice. You might want to calculate these metrics in designated functions
         # return the loss and print the calculated metrics
-        #TODO
-        
+
+        self._model.eval()
+        total_loss = 0
+        predictions = []
+        labels = []
+        with t.no_grad():
+            for x, y in self._val_test_dl:
+                if self._cuda:
+                    x = x.cuda()
+                    y = y.cuda()
+                loss, y_pred = self.val_test_step(x, y)
+                total_loss += loss
+                predictions.append(y_pred)
+                labels.append(y)
+        avg_loss = total_loss / len(self._val_test_dl)
+
+        accuracy = sum(prediction == label for prediction, label in zip(predictions, labels)) / len(predictions)
+
+        return avg_loss, accuracy
     
     def fit(self, epochs=-1):
         assert self._early_stopping_patience > 0 or epochs > 0
         # create a list for the train and validation losses, and create a counter for the epoch 
-        #TODO
-        
-        while True:
-      
-            # stop by epoch number
-            # train for a epoch and then calculate the loss and metrics on the validation set
-            # append the losses to the respective lists
-            # use the save_checkpoint function to save the model (can be restricted to epochs with improvement)
-            # check whether early stopping should be performed using the early stopping criterion and stop if so
-            # return the losses for both training and validation
-        #TODO
-                    
-        
-        
-        
+        train_losses = []
+        val_losses = []
+        epoch = 0
+
+        # stop by epoch number
+        # train for a epoch and then calculate the loss and metrics on the validation set
+        # append the losses to the respective lists
+        # use the save_checkpoint function to save the model (can be restricted to epochs with improvement)
+        # check whether early stopping should be performed using the early stopping criterion and stop if so
+        # return the losses for both training and validation
+
+        epochs_increasing = 0
+        while epoch < epochs:
+
+            train_loss = self.train_epoch()
+            val_loss, val_acc = self.val_test()
+
+            if val_loss > val_losses[-1]:
+                epochs_increasing += 1
+            else:
+                epochs_increasing = 0
+
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+            self.save_checkpoint(epoch)
+
+            if epochs_increasing == self._early_stopping_patience:
+                return train_losses, val_losses
+
+            epoch += 1
+            
+        return train_losses, val_losses
