@@ -1,6 +1,7 @@
 import torch as t
 from sklearn.metrics import f1_score
 from tqdm.autonotebook import tqdm
+import os
 
 
 class Trainer:
@@ -27,6 +28,8 @@ class Trainer:
             self._crit = crit.cuda()
             
     def save_checkpoint(self, epoch):
+        if not os.path.exists('checkpoints'):
+            os.makedirs('checkpoints')
         t.save({'state_dict': self._model.state_dict()}, 'checkpoints/checkpoint_{:03d}.ckp'.format(epoch))
     
     def restore_checkpoint(self, epoch_n):
@@ -148,10 +151,13 @@ class Trainer:
             train_loss = self.train_epoch()
             val_loss, val_acc = self.val_test()
 
-            if val_loss > val_losses[-1]:
+            if len(val_losses) == 0:
                 epochs_increasing += 1
             else:
-                epochs_increasing = 0
+                if val_loss > val_losses[-1]:
+                    epochs_increasing += 1
+                else:
+                    epochs_increasing = 0
 
             train_losses.append(train_loss)
             val_losses.append(val_loss)

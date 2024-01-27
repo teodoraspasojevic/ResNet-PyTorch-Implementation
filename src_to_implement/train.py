@@ -30,7 +30,7 @@ resnet_model = model.ResNet()
 loss = t.nn.BCELoss()
 optim = t.optim.SGD(resnet_model.parameters(), lr=0.01)
 
-trainer = Trainer(model=resnet_model, crit=loss, optim=optim, train_dl=train_dataset, val_test_dl=test_dataset, cuda=False)
+trainer = Trainer(model=resnet_model, crit=loss, optim=optim, train_dl=train_dataset, val_test_dl=test_dataset, cuda=True)
 
 # go, go, go... call fit on trainer
 
