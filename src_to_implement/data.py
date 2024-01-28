@@ -43,7 +43,7 @@ class ChallengeDataset(Dataset):
 
         # Perform transformations on the image.
         image = self.transform(image)
-        image = image.unsqueeze(0)                  # add the batch size
+        # image = image.unsqueeze(0)                  # add the batch size
 
         # Stack labels into torch.tensor.
         labels = torch.tensor([crack_label, inactive_label])
