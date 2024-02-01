@@ -1,3 +1,4 @@
+import numpy as np
 import torch as t
 from sklearn.metrics import f1_score
 from tqdm.autonotebook import tqdm
@@ -123,13 +124,21 @@ class Trainer:
                     y = y.cuda()
                 loss, y_pred = self.val_test_step(x, y)
                 total_loss += loss
-                predictions.append(y_pred)
-                labels.append(y)
+
+                y_pred_binary = (y_pred > 0.4).float()
+
+                predictions.append(y_pred_binary.cpu().numpy())
+                labels.append(y.cpu().numpy())
+
         avg_loss = total_loss / len(self._val_test_dl)
 
-        accuracy = sum(prediction == label for prediction, label in zip(predictions, labels)) / len(predictions)
+        all_predictions = np.vstack(predictions)
+        all_labels = np.vstack(labels)
 
-        return avg_loss, accuracy
+        # Calculate F1 score using 'samples' averaging for multi-label classification
+        mean_f1_score = f1_score(all_labels, all_predictions, average='samples', zero_division=0)
+
+        return avg_loss, mean_f1_score
     
     def fit(self, epochs=-1):
         assert self._early_stopping_patience > 0 or epochs > 0
@@ -137,6 +146,8 @@ class Trainer:
         train_losses = []
         val_losses = []
         epoch = 0
+
+        scheduler = t.optim.lr_scheduler.StepLR(self._optim, step_size=10, gamma=0.1)
 
         # stop by epoch number
         # train for a epoch and then calculate the loss and metrics on the validation set
@@ -149,7 +160,7 @@ class Trainer:
         while epoch < epochs:
 
             train_loss = self.train_epoch()
-            val_loss, val_acc = self.val_test()
+            val_loss, val_f1 = self.val_test()
 
             if len(val_losses) == 0:
                 epochs_increasing += 1
@@ -160,12 +171,19 @@ class Trainer:
                     epochs_increasing = 0
 
             train_losses.append(train_loss)
+
             val_losses.append(val_loss)
+            print(f'Training loss in epoch {epoch}: {train_loss:.5f}')
+            print(f'Validation loss in epoch {epoch}: {val_loss:.5f}')
+            print(f'F1 score in epoch {epoch}: {val_f1:.5f}\n')
 
             self.save_checkpoint(epoch)
 
             if epochs_increasing == self._early_stopping_patience:
+                print('Early stopping applied!')
                 return train_losses, val_losses
+
+            scheduler.step()
 
             epoch += 1
             

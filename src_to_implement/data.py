@@ -6,6 +6,7 @@ from skimage.color import gray2rgb
 import numpy as np
 import torchvision as tv
 import os
+import pandas as pd
 
 train_mean = [0.59685254, 0.59685254, 0.59685254]
 train_std = [0.16043035, 0.16043035, 0.16043035]
@@ -16,10 +17,15 @@ class ChallengeDataset(Dataset):
     def __init__(self, data, mode):
         self.data = data
         self.mode = mode
-        self._transform = tv.transforms.Compose(
-            [tv.transforms.ToPILImage(),  # Use only if the input image is not a PIL image
-             tv.transforms.ToTensor(),
-             tv.transforms.Normalize(mean=train_mean, std=train_std)])
+        self._transform = tv.transforms.Compose([
+            tv.transforms.ToPILImage(),  # Use only if the input image is not a PIL image
+            # tv.transforms.RandomRotation(degrees=(-15, 15)),
+            tv.transforms.RandomHorizontalFlip(),
+            # tv.transforms.RandomVerticalFlip(p=0.5),
+            # tv.transforms.ColorJitter(brightness=0.2),
+            tv.transforms.ToTensor(),
+            tv.transforms.Normalize(mean=train_mean, std=train_std)
+        ])
 
     def __len__(self):
         return len(self.data)
@@ -57,3 +63,34 @@ class ChallengeDataset(Dataset):
     @transform.setter
     def transform(self, transformations):
         self._transform = transformations
+
+    def add_samples(self, indices):
+        additional_data = self.data.iloc[indices]
+        self.data = pd.concat([self.data, additional_data])
+
+    def get_labels(self):
+        labels = []
+        for i in range(len(self.data)):
+            sample = self.data.iloc[i]
+            crack_label = sample["crack"]
+            inactive_label = sample["inactive"]
+            label = [crack_label, inactive_label]
+            labels.append(label)
+
+        return labels
+
+    def oversample_unbalanced_classes(self):
+        labels = self.get_labels()
+
+        unique, counts = np.unique(labels, axis=0, return_counts=True)
+
+        desired_freq = max(counts)
+
+        # Oversample underrepresented combinations
+        oversampled_data = []
+        for label_combination in unique:
+            indices = np.where((labels == label_combination).all(axis=1))[0]
+            oversample_count = desired_freq - counts[unique.tolist().index(list(label_combination))]
+            oversampled_data.extend(np.random.choice(indices, size=oversample_count, replace=True))
+
+        self.add_samples(oversampled_data)
