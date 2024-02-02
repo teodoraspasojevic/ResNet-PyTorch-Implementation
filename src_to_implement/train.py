@@ -20,8 +20,8 @@ train_df, test_df = train_test_split(data, test_size=0.2, random_state=42)
 train_dataset = ChallengeDataset(data=train_df, mode='train')
 test_dataset = ChallengeDataset(data=test_df, mode='val')
 
-# train_dataset.oversample_unbalanced_classes()
-# test_dataset.oversample_unbalanced_classes()
+train_dataset.oversample_unbalanced_classes()
+test_dataset.oversample_unbalanced_classes()
 
 # Generate new oversampled data
 # new_data = [train_dataset[idx][0] for idx in oversample_indices]  # Get data
@@ -42,9 +42,9 @@ resnet_model = model.ResNet()
 # create an object of type Trainer and set its early stopping criterion
 
 loss = t.nn.BCELoss()
-optim = t.optim.Adam(resnet_model.parameters(), lr=0.001)
+optimizer = t.optim.RMSprop(resnet_model.parameters(), lr=0.001, weight_decay=0.01)
 
-trainer = Trainer(model=resnet_model, crit=loss, optim=optim, train_dl=train_loader, val_test_dl=val_loader, cuda=True, early_stopping_patience=5)
+trainer = Trainer(model=resnet_model, crit=loss, optim=optimizer, train_dl=train_loader, val_test_dl=val_loader, cuda=True, early_stopping_patience=5)
 
 # go, go, go... call fit on trainer
 

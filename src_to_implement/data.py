@@ -18,11 +18,7 @@ class ChallengeDataset(Dataset):
         self.data = data
         self.mode = mode
         self._transform = tv.transforms.Compose([
-            tv.transforms.ToPILImage(),  # Use only if the input image is not a PIL image
-            # tv.transforms.RandomRotation(degrees=(-15, 15)),
-            tv.transforms.RandomHorizontalFlip(),
-            # tv.transforms.RandomVerticalFlip(p=0.5),
-            # tv.transforms.ColorJitter(brightness=0.2),
+            tv.transforms.ToPILImage(),
             tv.transforms.ToTensor(),
             tv.transforms.Normalize(mean=train_mean, std=train_std)
         ])
@@ -48,7 +44,23 @@ class ChallengeDataset(Dataset):
         image = gray2rgb(image)
 
         # Perform transformations on the image.
-        image = self.transform(image)
+        if self.mode == 'train':
+            self._transform = tv.transforms.Compose([
+                tv.transforms.ToPILImage(),
+                tv.transforms.RandomApply([tv.transforms.RandomRotation((90, 90)),
+                                           tv.transforms.RandomRotation((180, 180)),
+                                           tv.transforms.RandomRotation((270, 270))], p=0.5),
+                tv.transforms.RandomHorizontalFlip(),
+                tv.transforms.RandomVerticalFlip(),
+                tv.transforms.ToTensor(),
+                tv.transforms.RandomErasing()
+            ])
+        else:
+            self._transform = tv.transforms.Compose([
+                tv.transforms.ToPILImage(),
+                tv.transforms.ToTensor(),
+                tv.transforms.Normalize(mean=train_mean, std=train_std)
+            ])
         # image = image.unsqueeze(0)                  # add the batch size
 
         # Stack labels into torch.tensor.

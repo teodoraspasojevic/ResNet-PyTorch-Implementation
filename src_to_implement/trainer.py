@@ -70,7 +70,7 @@ class Trainer:
         loss.backward()
         self._optim.step()
 
-        return loss.item(), y_pred
+        return loss.item()
     
     def val_test_step(self, x, y):
         
@@ -93,29 +93,15 @@ class Trainer:
 
         self._model.train()
         total_loss = 0
-        predictions = []
-        labels = []
         for x, y in self._train_dl:
             if self._cuda:
                 x = x.cuda()
                 y = y.cuda()
-            loss, y_pred = self.train_step(x, y)
+            loss = self.train_step(x, y)
             total_loss += loss
-
-            y_pred_binary = (y_pred > 0.5).float()
-
-            predictions.append(y_pred_binary.cpu().numpy())
-            labels.append(y.cpu().numpy())
-
         avg_loss = total_loss / len(self._train_dl)
 
-        all_predictions = np.vstack(predictions)
-        all_labels = np.vstack(labels)
-
-        # Calculate F1 score using 'samples' averaging for multi-label classification
-        mean_f1_score = f1_score(all_labels, all_predictions, average='samples', zero_division=0)
-
-        return avg_loss, mean_f1_score
+        return avg_loss
     
     def val_test(self):
         # set eval mode. Some layers have different behaviors during training and testing (for example: Dropout, BatchNorm, etc.). To handle those properly, you'd want to call model.eval()
@@ -139,7 +125,7 @@ class Trainer:
                 loss, y_pred = self.val_test_step(x, y)
                 total_loss += loss
 
-                y_pred_binary = (y_pred > 0.5).float()
+                y_pred_binary = (y_pred > 0.4).float()
 
                 predictions.append(y_pred_binary.cpu().numpy())
                 labels.append(y.cpu().numpy())
@@ -161,7 +147,7 @@ class Trainer:
         val_losses = []
         epoch = 0
 
-        scheduler = t.optim.lr_scheduler.StepLR(self._optim, step_size=10, gamma=0.1)
+        # scheduler = t.optim.lr_scheduler.StepLR(self._optim, step_size=10, gamma=0.1)
 
         # stop by epoch number
         # train for a epoch and then calculate the loss and metrics on the validation set
@@ -173,7 +159,7 @@ class Trainer:
         epochs_increasing = 0
         while epoch < epochs:
 
-            train_loss, train_f1 = self.train_epoch()
+            train_loss = self.train_epoch()
             val_loss, val_f1 = self.val_test()
 
             if len(val_losses) == 0:
@@ -189,8 +175,7 @@ class Trainer:
             val_losses.append(val_loss)
             print(f'Training loss in epoch {epoch}: {train_loss:.5f}')
             print(f'Validation loss in epoch {epoch}: {val_loss:.5f}')
-            print(f'Training F1 score in epoch {epoch}: {train_f1:.5f}')
-            print(f'Validation F1 score in epoch {epoch}: {val_f1:.5f}\n')
+            print(f'F1 score in epoch {epoch}: {val_f1:.5f}\n')
 
             self.save_checkpoint(epoch)
 
@@ -198,7 +183,7 @@ class Trainer:
                 print('Early stopping applied!')
                 return train_losses, val_losses
 
-            scheduler.step()
+            # scheduler.step()
 
             epoch += 1
             
