@@ -20,8 +20,8 @@ train_df, test_df = train_test_split(data, test_size=0.2, random_state=42)
 train_dataset = ChallengeDataset(data=train_df, mode='train')
 test_dataset = ChallengeDataset(data=test_df, mode='val')
 
-train_dataset.oversample_unbalanced_classes()
-test_dataset.oversample_unbalanced_classes()
+# train_dataset.oversample_unbalanced_classes()
+# test_dataset.oversample_unbalanced_classes()
 
 # Generate new oversampled data
 # new_data = [train_dataset[idx][0] for idx in oversample_indices]  # Get data
