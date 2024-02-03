@@ -50,9 +50,20 @@ trainer = Trainer(model=resnet_model, crit=loss, optim=optimizer, train_dl=train
 
 res = trainer.fit(epochs=200)
 
+trainer.restore_checkpoint(res[4])
+trainer.save_onnx('checkpoint_{:03d}.onnx'.format(res[4]))
+
 # plot the results
+plt.figure(1)
 plt.plot(np.arange(len(res[0])), res[0], label='train loss')
 plt.plot(np.arange(len(res[1])), res[1], label='val loss')
 plt.yscale('log')
 plt.legend()
 plt.savefig('losses.png')
+
+plt.figure(2)
+plt.plot(np.arange(len(res[2])), res[2], label='train f1 score')
+plt.plot(np.arange(len(res[3])), res[3], label='val f1 score')
+plt.yscale('log')
+plt.legend()
+plt.savefig('f1_scores.png')

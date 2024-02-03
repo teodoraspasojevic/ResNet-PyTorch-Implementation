@@ -113,7 +113,8 @@ class Trainer:
         all_labels = np.vstack(labels)
 
         # Calculate F1 score using 'samples' averaging for multi-label classification
-        mean_f1_score = f1_score(all_labels, all_predictions, average='samples', zero_division=0)
+        f1_score_per_label = f1_score(all_labels, all_predictions, average=None, zero_division=0)
+        mean_f1_score = np.mean(f1_score_per_label)
 
         return avg_loss, mean_f1_score
     
@@ -150,7 +151,8 @@ class Trainer:
         all_labels = np.vstack(labels)
 
         # Calculate F1 score using 'samples' averaging for multi-label classification
-        mean_f1_score = f1_score(all_labels, all_predictions, average='samples', zero_division=0)
+        f1_score_per_label = f1_score(all_labels, all_predictions, average=None, zero_division=0)
+        mean_f1_score = np.mean(f1_score_per_label)
 
         return avg_loss, mean_f1_score
     
@@ -161,7 +163,7 @@ class Trainer:
         epoch = 0
         epochs_since_improvement = 0
         best_val_loss = float('inf')
-        best_model_state = None  # To store the best model state
+        best_epoch = 0
 
         while epoch < epochs:
             train_loss, train_f1 = self.train_epoch()
@@ -175,8 +177,7 @@ class Trainer:
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 epochs_since_improvement = 0  # Reset the counter
-                # best_model_state = copy.deepcopy(self._model.state_dict())  # Save the best model state
-                # Optionally save the model checkpoint here as well
+                best_epoch = epoch
             else:
                 epochs_since_improvement += 1  # Increment the counter if no improvement
 
@@ -187,10 +188,8 @@ class Trainer:
                 print("Early stopping triggered.")
                 break
 
+            self.save_checkpoint(epoch)
+
             epoch += 1
 
-        # If best_model_state is not None, load it into the model
-        # if best_model_state is not None:
-        #   self._model.load_state_dict(best_model_state)
-
-        return train_losses, val_losses, train_f1_scores, val_f1_scores, self._model
+        return train_losses, val_losses, train_f1_scores, val_f1_scores, best_epoch
