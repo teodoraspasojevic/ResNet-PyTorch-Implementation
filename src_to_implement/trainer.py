@@ -70,7 +70,7 @@ class Trainer:
         loss.backward()
         self._optim.step()
 
-        return loss.item()
+        return loss.item(), y_pred
     
     def val_test_step(self, x, y):
         
@@ -93,15 +93,29 @@ class Trainer:
 
         self._model.train()
         total_loss = 0
+        predictions = []
+        labels = []
         for x, y in self._train_dl:
             if self._cuda:
                 x = x.cuda()
                 y = y.cuda()
-            loss = self.train_step(x, y)
+            loss, y_pred = self.train_step(x, y)
             total_loss += loss
+
+            y_pred_binary = (y_pred > 0.5).float()
+
+            predictions.append(y_pred_binary.cpu().numpy())
+            labels.append(y.cpu().numpy())
+
         avg_loss = total_loss / len(self._train_dl)
 
-        return avg_loss
+        all_predictions = np.vstack(predictions)
+        all_labels = np.vstack(labels)
+
+        # Calculate F1 score using 'samples' averaging for multi-label classification
+        mean_f1_score = f1_score(all_labels, all_predictions, average='samples', zero_division=0)
+
+        return avg_loss, mean_f1_score
     
     def val_test(self):
         # set eval mode. Some layers have different behaviors during training and testing (for example: Dropout, BatchNorm, etc.). To handle those properly, you'd want to call model.eval()
@@ -125,7 +139,7 @@ class Trainer:
                 loss, y_pred = self.val_test_step(x, y)
                 total_loss += loss
 
-                y_pred_binary = (y_pred > 0.4).float()
+                y_pred_binary = (y_pred > 0.5).float()
 
                 predictions.append(y_pred_binary.cpu().numpy())
                 labels.append(y.cpu().numpy())
@@ -142,49 +156,41 @@ class Trainer:
     
     def fit(self, epochs=-1):
         assert self._early_stopping_patience > 0 or epochs > 0
-        # create a list for the train and validation losses, and create a counter for the epoch 
-        train_losses = []
-        val_losses = []
+        train_losses, val_losses = [], []
+        train_f1_scores, val_f1_scores = [], []
         epoch = 0
+        epochs_since_improvement = 0
+        best_val_loss = float('inf')
+        best_model_state = None  # To store the best model state
 
-        # scheduler = t.optim.lr_scheduler.StepLR(self._optim, step_size=10, gamma=0.1)
-
-        # stop by epoch number
-        # train for a epoch and then calculate the loss and metrics on the validation set
-        # append the losses to the respective lists
-        # use the save_checkpoint function to save the model (can be restricted to epochs with improvement)
-        # check whether early stopping should be performed using the early stopping criterion and stop if so
-        # return the losses for both training and validation
-
-        epochs_increasing = 0
         while epoch < epochs:
-
-            train_loss = self.train_epoch()
+            train_loss, train_f1 = self.train_epoch()
             val_loss, val_f1 = self.val_test()
 
-            if len(val_losses) == 0:
-                epochs_increasing += 1
-            else:
-                if val_loss > val_losses[-1]:
-                    epochs_increasing += 1
-                else:
-                    epochs_increasing = 0
-
             train_losses.append(train_loss)
-
             val_losses.append(val_loss)
-            print(f'Training loss in epoch {epoch}: {train_loss:.5f}')
-            print(f'Validation loss in epoch {epoch}: {val_loss:.5f}')
-            print(f'F1 score in epoch {epoch}: {val_f1:.5f}\n')
+            train_f1_scores.append(train_f1)
+            val_f1_scores.append(val_f1)
 
-            self.save_checkpoint(epoch)
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                epochs_since_improvement = 0  # Reset the counter
+                # best_model_state = copy.deepcopy(self._model.state_dict())  # Save the best model state
+                # Optionally save the model checkpoint here as well
+            else:
+                epochs_since_improvement += 1  # Increment the counter if no improvement
 
-            if epochs_increasing == self._early_stopping_patience:
-                print('Early stopping applied!')
-                return train_losses, val_losses
+            print(
+                f'Epoch {epoch}: Training Loss: {train_loss:.5f}, Validation Loss: {val_loss:.5f}, Training F1: {train_f1:.5f}, Validation F1: {val_f1:.5f}')
 
-            # scheduler.step()
+            if epochs_since_improvement >= self._early_stopping_patience:
+                print("Early stopping triggered.")
+                break
 
             epoch += 1
-            
-        return train_losses, val_losses
+
+        # If best_model_state is not None, load it into the model
+        # if best_model_state is not None:
+        #   self._model.load_state_dict(best_model_state)
+
+        return train_losses, val_losses, train_f1_scores, val_f1_scores, self._model

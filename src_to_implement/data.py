@@ -61,6 +61,7 @@ class ChallengeDataset(Dataset):
                 tv.transforms.ToTensor(),
                 tv.transforms.Normalize(mean=train_mean, std=train_std)
             ])
+        image = self._transform(image)
         # image = image.unsqueeze(0)                  # add the batch size
 
         # Stack labels into torch.tensor.
