@@ -44,23 +44,25 @@ class ChallengeDataset(Dataset):
         image = gray2rgb(image)
 
         # Perform transformations on the image.
-        # if self.mode == 'train':
-        #     self._transform = tv.transforms.Compose([
-        #         tv.transforms.ToPILImage(),
-        #         tv.transforms.RandomApply([tv.transforms.RandomRotation((90, 90)),
-        #                                    tv.transforms.RandomRotation((180, 180)),
-        #                                    tv.transforms.RandomRotation((270, 270))], p=0.5),
-        #         tv.transforms.RandomHorizontalFlip(),
-        #         tv.transforms.RandomVerticalFlip(),
-        #         tv.transforms.ToTensor(),
-        #         tv.transforms.RandomErasing()
-        #     ])
-        # else:
-        #     self._transform = tv.transforms.Compose([
-        #         tv.transforms.ToPILImage(),
-        #         tv.transforms.ToTensor(),
-        #         tv.transforms.Normalize(mean=train_mean, std=train_std)
-        #     ])
+        if self.mode == 'train':
+            self._transform = tv.transforms.Compose([
+                tv.transforms.ToPILImage(),
+                tv.transforms.RandomApply([tv.transforms.RandomRotation((90, 90)),
+                                           tv.transforms.RandomRotation((180, 180)),
+                                           tv.transforms.RandomRotation((270, 270))], p=0.5),
+                tv.transforms.RandomHorizontalFlip(),
+                tv.transforms.RandomVerticalFlip(),
+                tv.transforms.ToTensor(),
+                # tv.transforms.ColorJitter(contrast=1.5),
+                tv.transforms.Normalize(mean=train_mean, std=train_std),
+                tv.transforms.RandomErasing()
+            ])
+        else:
+            self._transform = tv.transforms.Compose([
+                tv.transforms.ToPILImage(),
+                tv.transforms.ToTensor(),
+                tv.transforms.Normalize(mean=train_mean, std=train_std)
+            ])
         image = self._transform(image)
         # image = image.unsqueeze(0)                  # add the batch size
 
